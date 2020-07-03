@@ -78,25 +78,29 @@ function createScript(bytecode) {
   }
 }
 
+function name(bytecode) {
+  return bytecode.join("");
+}
+
 const compiler = {
   enabled: true,
-  scripts: new Map(),
+  scripts: {},
   threshold: 10,
 
   incrementScriptCounter(bytecode) {
-    if (!this.scripts[bytecode]) {
-      this.scripts[bytecode] = createScript(bytecode);
+    if (!this.scripts[name(bytecode)]) {
+      this.scripts[name(bytecode)] = createScript(bytecode);
     }
-    return this.scripts[bytecode].counter++;
+    return this.scripts[name(bytecode)].counter++;
   },
 
   hasCompiledScript(bytecode) {
-    return !!this.scripts[bytecode].compiledScript;
+    return !!this.scripts[name(bytecode)].compiledScript;
   },
 
   runCompiledCode(bytecode) {
     console.log("JIT Script ⚡");
-    return this.scripts[bytecode].compiledScript();
+    return this.scripts[name(bytecode)].compiledScript();
   },
 
   compileCode(bytecode) {
@@ -121,7 +125,7 @@ const compiler = {
         }
       }
     }
-    this.scripts[bytecode].compiledScript = new Function("", output);
+    this.scripts[name(bytecode)].compiledScript = new Function("", output);
   }
 }
 
