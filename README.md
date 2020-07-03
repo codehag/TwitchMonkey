@@ -1,6 +1,6 @@
 # TwitchMonkey
 
-A learning aide for engines. Very small engine for a very small language. Implements the following:
+A learning aid for engines. Very small engine for a very small language. Implements the following:
 
 
 Grammar
