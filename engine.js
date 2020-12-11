@@ -1,37 +1,109 @@
+function twitch(string) {
+  const tokens = lex(string);
+  const bytecode = parse(tokens);
+  return interpret(bytecode);
+}
+
 function lex(string) {
   return string
-    .match(/a|b|c|d/g)
-    .map(token => token.toUpperCase());
+    .split(/\s/g)
+    .filter(x => !!x)
+    .map(string => {
+      if (string.match(/a|b|c|d|fun|end|run/g)) {
+        return string.toUpperCase()
+      } else {
+        return string;
+      }
+    });
 }
 
 // This language has no structure, so we are jumping straight to bytecode rather than first building
 // an AST
 function parse(tokens) {
   const bytecode = [];
-  for (let token of tokens) {
+  while (tokens) {
+    token = tokens.shift();
+    if (!token) {
+      break;
+    }
+    emitStatement(tokens, bytecode);
+  }
+  return bytecode;
+}
+
+function emitStatement(tokens, bytecode) {
+  switch (token) {
+    case "A": {
+      bytecode.push("xA");
+      break;
+    }
+    case "B": {
+      bytecode.push("xB");
+      break;
+    }
+    case "C": {
+      bytecode.push("xC");
+      break;
+    }
+    case "D": {
+      bytecode.push("xD");
+      break;
+    }
+    case "FUN": {
+      emitFunction(tokens, bytecode);
+      break;
+    }
+    case "END": {
+      throw new Error("invalid end");
+    }
+    case undefined: {
+      throw new Error("invalid whatever");
+      break;
+    }
+    case "RUN": {
+      bytecode.push("RUN");
+      let name = tokens.shift();
+      if (isNamingError(name)) {
+        throw new Error("invalid name");
+      }
+      bytecode.push(name);
+      break;
+    }
+    default: {
+      throw new Error(`invalid stuff "${token}"`);
+    }
+  }
+}
+
+function emitFunction(tokens, bytecode) {
+  bytecode.push("FUN");
+  let name = tokens.shift();
+  if (isNamingError(name)) {
+    throw new Error("invalid name");
+  }
+  bytecode.push(name);
+  let endTarget = bytecode.length;
+  bytecode.push(endTarget);
+  while (tokens) {
+    token = tokens.shift();
+    if (!token) {
+      throw new Error("function incomplete");
+    }
     switch (token) {
-      case "A": {
-        bytecode.push("xA");
-        break;
-      }
-      case "B": {
-        bytecode.push("xB");
-        break;
-      }
-      case "C": {
-        bytecode.push("xC");
-        break;
-      }
-      case "D": {
-        bytecode.push("xD");
-        break;
+      case "END": {
+        bytecode[endTarget] = bytecode.length - 1;
+        return;
       }
       default: {
-        throw new Error("invalid stuff");
+        emitStatement(tokens, bytecode);
+        break;
       }
     }
   }
-  return bytecode;
+}
+
+function isNamingError(token) {
+  return !token || ["A", "B", "C", "D", "FUN", "END"].includes(token);
 }
 
 function interpret(bytecode) {
@@ -48,7 +120,9 @@ function interpret(bytecode) {
     }
   }
 
-  for (let code of bytecode) {
+  let functions = {};
+  for (let index=0; index < bytecode.length; index++) {
+    let code = bytecode[index];
     switch (code) {
       case "xA": {
         console.log(instruction.a);
@@ -66,8 +140,35 @@ function interpret(bytecode) {
         console.log(instruction.d);
         break;
       }
+      case "FUN": {
+        let name = bytecode[index + 1];
+        let end = bytecode[index + 2];
+        let start = index + 3;
+        functions[name] = {start, end};
+        // step forward to get the name.
+        index = end;
+        break;
+      }
+      case "RUN": {
+        // step forward to get the name.
+        index += 1
+        let name = bytecode[index];
+        evaluateFunction(functions[name], bytecode);
+        break;
+      }
+      case undefined: {
+        throw Error("wat")
+      }
+      default: {
+        break;
+      }
     }
   }
+}
+
+function evaluateFunction(func, bytecode) {
+  const functionBytecode = bytecode.slice(func.start, func.end + 1);
+  interpret(functionBytecode);
 }
 
 function createScript(bytecode) {
@@ -105,7 +206,9 @@ const compiler = {
 
   compileCode(bytecode) {
     let output = "";
-    for (const code of bytecode) {
+    let functions = {};
+    for (let index = 0; index <= bytecode.length; index++) {
+      let code = bytecode[index];
       switch (code) {
         case "xA": {
           output += `console.log("${instruction.a}");`;
@@ -121,6 +224,25 @@ const compiler = {
         }
         case "xD": {
           output += `console.log("${instruction.d}");`;
+          break;
+        }
+        case "FUN": {
+          let name = bytecode[index + 1];
+          let end = bytecode[index + 2];
+          let start = index + 3;
+          functions[name] = {start, end};
+          // step forward to skip around function.
+          index = end;
+          break;
+        }
+        case "RUN": {
+          // step forward to get the name.
+          index += 1
+          let name = bytecode[index];
+          evaluateFunction(functions[name], bytecode);
+          break;
+        }
+        default: {
           break;
         }
       }
